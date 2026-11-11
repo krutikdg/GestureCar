@@ -47,3 +47,153 @@ this is an advanced handheld controller that drives a four wheel drive car by ti
 | M3 screws nuts and standoffs kit | 1 | 15.16 | chassis and deck mounting | [Link](https://amazon.in/350PCS-M3-Female-Standoff-Assortment/dp/B0BXT71WJK?source=ps-sl-shoppingads-lpcontext&ref_=fplfs&psc=1&smid=A1YZ9MMK17G6RH) |
 | M3 heat set inserts and M3 screws 8 to 10 mm | 1 | 1.10 | six deck posts on the car chassis | [Link](https://robu.in/product/m3-x-8-mm-brass-heat-set-threaded-round-insert-nut-25-pcs/) |
 | PLA filament 1 kg | 1 | 13.90 | chassis deck and handheld enclosure printing | [Link](https://ideal3d.in/products/esun-pla-filament-white?srsltid=AYCX9vIbQXf4kmvjAZsr-c4zZwCzzGXoIBBy8v6UrFiig5aEf0CwUShp) |
+
+<b>Estimated total: $333.84</b>
+
+# Circuit Diagram 
+
+## handheld diagram
+
+## handheld pin map
+
+<b>Board: 38 pin ESP32 dev board.</b>
+
+## Sensor and display (shared I2C bus)
+
+| Component | Component Pin | MCU Pin |
+|---|---|---|
+| MPU6050 | VCC | 3V3 |
+| MPU6050 | GND | Star ground |
+| MPU6050 | SCL | GPIO22 |
+| MPU6050 | SDA | GPIO21 |
+| MPU6050 | AD0 | GND (fixes address at 0x68) |
+| MPU6050 | INT | Not connected |
+| SSD1306 OLED | VCC | 3V3 |
+| SSD1306 OLED | GND | Star ground |
+| SSD1306 OLED | SCL | GPIO22 |
+| SSD1306 OLED | SDA | GPIO21 |
+
+## Inputs and outputs
+
+| Component | Component Pin | MCU Pin |
+|---|---|---|
+| Arm button | Pin 1 | GPIO25 (internal pull up) |
+| Arm button | Pin 2 | GND |
+| Mode button | Pin 1 | GPIO26 (internal pull up) |
+| Mode button | Pin 2 | GND |
+| RGB LED (common cathode) | Red via 220 ohm | GPIO16 |
+| RGB LED (common cathode) | Green via 220 ohm | GPIO17 |
+| RGB LED (common cathode) | Blue via 220 ohm | GPIO18 |
+| RGB LED (common cathode) | Common cathode | GND |
+| NPN transistor | Base via 1k ohm | GPIO19 |
+| NPN transistor | Emitter | GND |
+| NPN transistor | Collector | Vibration motor negative terminal |
+| Vibration motor | Positive terminal | 3V3 |
+| Diode 1N4148 | Cathode (stripe) | 3V3 (motor positive) |
+| Diode 1N4148 | Anode | Transistor collector (motor negative) |
+| Battery divider | Top 100k from battery positive (after the slide switch) | Midpoint node |
+| Battery divider | Midpoint node (100 nF to GND) | GPIO34 (ADC1, input only) |
+| Battery divider | Bottom 100k | GND |
+
+## Power chain
+
+| Component | Component Pin | MCU Pin |
+|---|---|---|
+| LiPo cell | Positive and negative | TP4056 module B+ and B- |
+| TP4056 module | OUT+ | Slide switch, then boost converter IN+ |
+| TP4056 module | OUT- | Boost converter IN- and star ground |
+| Boost converter 5V | OUT+ | ESP32 VIN (5V pin) and BU03 tag 5V (pin 20) |
+| Boost converter 5V | OUT- | Star ground |
+| BU03 tag | GND (pin 16 or 22) | Star ground |
+| BU03 tag | TX1 and RX1 | Not connected |
+
+## I2C addresses 
+
+| Device | Address |
+|---|---|
+| MPU6050 | 0x68 |
+| SSD1306 OLED | 0x3C |
+## car diagram
+
+## car pin map
+
+<b>Board: 38 pin ESP32 dev board.</b>
+
+## Left driver (TB6612FNG module 1)
+
+| Component | Component Pin | MCU Pin |
+|---|---|---|
+| TB6612FNG #1 | AIN1 | GPIO25 |
+| TB6612FNG #1 | BIN1 | GPIO25 |
+| TB6612FNG #1 | AIN2 | GPIO26 |
+| TB6612FNG #1 | BIN2 | GPIO26 |
+| TB6612FNG #1 | PWMA | GPIO27 |
+| TB6612FNG #1 | PWMB | GPIO27 |
+| TB6612FNG #1 | STBY | GPIO23 (shared net, 10k pull down to GND) |
+| TB6612FNG #1 | VCC | 3V3 |
+| TB6612FNG #1 | VM | 6V motor rail |
+| TB6612FNG #1 | GND | Star ground |
+| Front left motor | Terminals | TB6612FNG #1 channel A outputs |
+| Rear left motor | Terminals | TB6612FNG #1 channel B outputs |
+
+## Right driver (TB6612FNG module 2)
+
+| Component | Component Pin | MCU Pin |
+|---|---|---|
+| TB6612FNG #2 | AIN1 | GPIO32 |
+| TB6612FNG #2 | BIN1 | GPIO32 |
+| TB6612FNG #2 | AIN2 | GPIO33 |
+| TB6612FNG #2 | BIN2 | GPIO33 |
+| TB6612FNG #2 | PWMA | GPIO13 |
+| TB6612FNG #2 | PWMB | GPIO13 |
+| TB6612FNG #2 | STBY | GPIO23 |
+| TB6612FNG #2 | VCC | 3V3 |
+| TB6612FNG #2 | VM | 6V motor rail |
+| TB6612FNG #2 | GND | Star ground |
+| Front right motor | Terminals | TB6612FNG #2 channel A outputs |
+| Rear right motor | Terminals | TB6612FNG #2 channel B outputs |
+
+## Power nets
+
+| Component | Component Pin | MCU Pin |
+|---|---|---|
+| 2S battery + BMS | P+ via main switch and fuse | Buck 6V input and Buck 5V input |
+| Buck converter 6V | Output | TB6612FNG VM (both drivers) |
+| Buck converter 5V | Output | ESP32 VIN (5V pin) |
+| Buck converter 5V | Output | Reserved for 3 BU03 anchors, ultrasonic, LED strip |
+| ESP32 | GND | Star ground |
+| Battery pack | Negative (BMS P-) | Star ground |
+
+## Car sensors, LEDs and UWB 
+
+| Component | Component Pin | MCU Pin |
+|---|---|---|
+| VL53L1X ToF | SDA | GPIO21 |
+| VL53L1X ToF | SCL | GPIO22 |
+| VL53L1X ToF | VIN | 3V3 |
+| VL53L1X ToF | GND | Star ground |
+| VL53L1X ToF | XSHUT and GPIO1 | Not connected |
+| HC-SR04 | VCC | 5V rail |
+| HC-SR04 | TRIG | GPIO18 |
+| HC-SR04 | ECHO | GPIO19 via divider (1k in series, 2k from GPIO19 to GND) |
+| HC-SR04 | GND | Star ground |
+| 74AHCT125 (one gate) | A input | GPIO4 |
+| 74AHCT125 (one gate) | Y output | LED strip DIN via 330 ohm resistor |
+| 74AHCT125 | VCC | 5V rail |
+| 74AHCT125 | GND, all OE pins, all unused inputs | Star ground |
+| WS2812B strip | 5V (1000 uF across 5V and GND at the strip start) | 5V rail |
+| WS2812B strip | GND | Star ground |
+| Battery divider | Top 20k from battery positive (after fuse and main switch) | Midpoint node |
+| Battery divider | Midpoint node (100 nF to GND) | GPIO34 (ADC1, input only) |
+| Battery divider | Bottom 10k | Star ground |
+| BU03 anchor 0 | TX1 (pin 6) | GPIO16 (UART2 RX) |
+| BU03 anchor 0 | RX1 (pin 7) | GPIO17 (UART2 TX) |
+| BU03 anchor 0 | 5V (pin 20) | 5V rail |
+| BU03 anchor 0 | GND (pin 16 or 22) | Star ground |
+| BU03 anchors 1 and 2 | 5V (pin 20) and GND (pin 16 or 22) | 5V rail and star ground |
+
+## I2C addresses
+
+| Device | Address |
+|---|---|
+| VL53L1X ToF sensor | 0x29 |
