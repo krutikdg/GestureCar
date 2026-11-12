@@ -1,5 +1,22 @@
-# HandHeld Car
-this is an advanced handheld controller that drives a four wheel drive car by tilting it. pitching the controller forward drives the car forward, pitching it back reverses, and rolling it left or right steers it. the harder i tilt, the faster the car goes, and a dead zone around level keeps the car still when my hand is flat. an ESP32 inside the controller reads an IMU and sends the tilt values to a second ESP32 on the car over ESP NOW. if the car stops hearing from the controller, it stops. A button arms the car and another cycles between crawl, normal and turbo speeds. the car brakes on its own for obstacles and reports the distance back, so the controller vibrates faster as I get closer to a wall. shaking the controller makes the car spin, underglow lights follow its speed and steering, and a status LED shows whether the controller is armed and linked. There’s also a follow-me mode where the car trails me at a set distance. 
+# Gesture_Car
+A 4WD car you drive by tilting a handheld controller. Tilt it forward or back to set the speed, and twist your wrist to steer. Two ESP32 boards talk to each other directly over ESP NOW, so there is no router and no phone in the loop, and the car stops by itself if the link drops for a quarter of a second. The handheld has an OLED that shows the link, the car battery and the distance to the nearest obstacle, plus a vibration motor that buzzes faster as the car gets close to a wall. A front time of flight sensor and a rear ultrasonic sensor brake the car before it hits anything, and an underglow strip shows its state. There are three speed modes, an arm switch so nothing moves by accident, and a shake gesture that spins the car on the spot. The chassis and the handheld case are my own designs, 3D printed in PLA. I built this to learn how motion sensing, radio links and safety logic fit together on small boards.
+
+## Built With
+
+- ESP32 DevKit (38 pin board), one in the car and one in the handheld
+- Ai-Thinker BU03 Kit UWB boards (STM32F103 + DW3000), three anchors on the car and one tag in the handheld
+- 6V TT gear motors (four) with 65 mm wheels
+- TB6612FNG motor driver modules (two)
+- MPU6050 IMU module
+- SSD1306 0.96 inch OLED display (I2C)
+- VL53L1X time of flight distance sensor
+- HC-SR04 ultrasonic sensor
+- WS2812B LED strip with a 74AHCT125 level shifter
+- 2S 18650 pack with a BMS and two buck converters (6V and 5V) in the car
+- 1S LiPo cell with a TP4056 charger and a 5V boost converter in the handheld
+- Coin vibration motor, tactile buttons and an RGB status LED
+- Arduino IDE with the ESP32 board package, and the Adafruit SSD1306, Adafruit GFX, Pololu VL53L1X and Adafruit NeoPixel libraries
+- Fusion 360 for the parametric CAD, printed in PLA on a Bambu Lab P1S
 
 # Bill Of Materials
 
@@ -197,3 +214,142 @@ this is an advanced handheld controller that drives a four wheel drive car by ti
 | Device | Address |
 |---|---|
 | VL53L1X ToF sensor | 0x29 |
+
+## Assembly Guide
+
+ Treat every step as a plan, and expect to adjust it when the parts arrive. Software menus and library versions change, so check them against what you actually see.
+
+### Before you start
+
+**Tools,** Soldering iron, wire strippers, a multimeter, small screwdrivers, flush cutters, calipers, and a Bambu Lab P1S or another printer with at least a 190 by 160 mm bed.
+
+**Software,** Arduino IDE with the ESP32 board package. The firmware has switches for both the 2.x and 3.x versions of the package, so note which one you installed. Install these libraries, Adafruit SSD1306, Adafruit GFX, Pololu VL53L1X and Adafruit NeoPixel.
+
+**Safety,** Read this before connecting any battery.
+- Check the polarity of every battery plug with the multimeter before it touches a board. Cheap LiPo cells sometimes ship with the JST plug wired the other way round.
+- Fit the 5 A fuse on the car's battery line and keep it there.
+- For the first power up of the car, take the wheels off or lift the car so the wheels turn in the air.
+- Never charge a LiPo or an 18650 cell unattended, and never charge a puffy or damaged cell.
+- Do not power a board from a USB cable and the battery rail at the same time until you have checked how that board handles it. Which pin the 5V enters on varies between ESP32 dev boards.
+
+**Print list,** Handheld shell, handheld cover, car base plate, car deck. The CAD files and parameter tables are in the CAD folder.
+
+### Step 1: Bench test the handheld electronics
+
+Do this on a breadboard or loose wires, before anything goes in the enclosure.
+
+1. Wire the ESP32, the MPU6050 and the OLED on the shared I2C bus (SDA on GPIO21, SCL on GPIO22) using the pin map. Tie the MPU6050 AD0 pin to GND.
+2. Flash the handheld firmware with the car's MAC address still at the broadcast default. Open the Serial Monitor at 115200 baud.
+3. **Check** the boot messages should read `oled ok`, `imu ok who_am_i 0x68`, then `espnow ok`, followed by the board's MAC address. Write the handheld's MAC down.
+4. Tilt the board. The serial lines should show pitch and roll moving the right way. If forward tilt gives a negative pitch, flip `PITCH_SIGN`. If pitch and roll are swapped, set `SWAP_PITCH_ROLL`. These are one-line fixes, and I could not decide them without the real sensor.
+5. Wire the arm button (GPIO25) and mode button (GPIO26) to GND, the RGB LED (GPIOs 16, 17, 18 through 220 ohm resistors), and the vibration motor through the BC547 (GPIO19, 1k base resistor, 1N4148 across the motor).
+6. **Check** the arm button toggles armed on the OLED. A short mode press cycles the speed, and the vibration motor buzzes once to three times. The LED changes colour with state.
+7. Wire the battery divider (two 100k resistors, midpoint to GPIO34 with a 100 nF capacitor to GND). Compare the battery voltage on the screen with a multimeter reading, and adjust `HAND_BATTERY_DIVIDER` if they differ by more than about 50 mV.
+
+### Step 2: Bench test the car electronics
+
+1. With the motors and wheels disconnected, wire the power chain: battery pack, BMS, main switch, fuse, then the two buck converters. Before connecting any board, set the 6V buck to 6.0 V and the 5V buck to 5.0 V with the multimeter.
+2. Connect the ESP32 (5V pin from the 5V buck), the two TB6612FNG drivers, and the STBY net. Flash the car firmware.
+3. **Check** the serial output should say `espnow ok`, print the car's MAC address, and report `tof ok` or `tof FAILED`. Write the car's MAC down.
+4. Leave the motors for Step 3. The firmware only drives them once the handheld arms the car, so the first motor test happens after pairing.
+5. Wire the VL53L1X (I2C, 3.3V), the HC-SR04 (5V, with the echo line through the 1k and 2k divider to GPIO19), and the LED strip (GPIO4 through the 74AHCT125 and a 330 ohm resistor). Put the 1000 uF capacitor across the strip's power input.
+6. **Check** the serial output prints front and rear distances. Move a hand in front of each sensor and watch the numbers change. The strip should show the status colour for no link.
+
+### Step 3: Pair the two boards
+
+1. Put the car's MAC address into `CAR_MAC` in the handheld firmware, and re-flash the handheld. Keep `WIFI_CHANNEL` and `TEAM_ID` identical in both files. Choose a `TEAM_ID` nobody else at a venue is likely to use.
+2. Power both boards. The handheld screen should change from `NO LINK` to `LINK OK` within about a second.
+3. Arm the handheld. It should not show `CAR NOT ARMED` for more than a moment. With the car's wheels in the air, tilt the handheld forward and check that all four motors spin forward. Tilt right and check that the left side speeds up.
+4. Fix directions now: if a whole side runs backward, set `LEFT_REVERSED` or `RIGHT_REVERSED` in the car firmware. If one motor on a side runs the other way, swap that motor's two wires.
+5. Test the failsafe. Switch the handheld off while the motors run. The car must stop within about a quarter of a second.
+
+### Step 4: Print and assemble the handheld
+
+1. Press the four M2 heat-set inserts into the posts under the shell's top wall with a soldering iron set for PLA. Press slowly, straight, and stop when the insert is flush. Practice on a scrap print first.
+2. Fit the OLED into its pocket with the screen against the window. Fit the two button caps through their holes from the inside, then slide the tactile buttons into the cups. If the real buttons wobble, add a dab of hot glue.
+3. Press the ESP32, the MPU6050 and the BU03 tag into their cradles. Check the MPU6050 orientation against the axis settings you found in Step 1.
+4. Solder or plug the wiring to length. Leave a little slack so the cover can come off, and keep wires away from the seam and the posts.
+5. In the cover, fit the TP4056, the boost converter, the slide switch and the vibration motor (a piece of foam tape holds the motor). Put the LiPo in last, keep it away from sharp edges, and wrap the leads.
+6. Check polarity again, then close the case with four M2 screws going up from the underside. Do not overtighten. If the screws feel too short or too long, change the length rather than forcing them.
+7. **Check** charge through the TP4056 port. The cable plug must fit the slot without forcing. Switch the handheld on, and repeat the Step 1 checks with everything inside.
+
+### Step 5: Print and assemble the car
+
+1. Press the six M3 heat-set inserts into the posts on the base plate.
+2. Lay a real motor into each cradle with its shaft pointing outward. Press the wheels on and check the gap against the plate edge. Adjust the printed gap if a wheel rubs.
+3. Set the 2S cell holder in the middle of the base plate. Put the cells in last.
+4. Fit the VL53L1X behind the front window and the HC-SR04 behind the two round holes in the rear wall. Fit the main rocker switch in the rear wall cutout.
+5. Press the LED strip into the underside recess and feed the wires up through the plate hole.
+6. Fit the deck. The pads under it should press lightly on the motors. Screw it down with six M3 screws.
+7. Mount the ESP32 board, drivers, BMS, buck converters and perf board on the deck. Put the three BU03 anchors on their pedestals, with the antenna ends facing outward and away from the battery and the large metal parts.
+8. Do a last polarity check, put the wheels on, and repeat Step 3 on the floor with the car on a stand first.
+
+### Step 6: First drive and calibration
+
+**Neutral and deadzone,** Arm the handheld in the pose you hold it comfortably. That pose becomes zero tilt. If the car creeps while you hold still, raise `DEADZONE_DEG`.
+
+**Sensitivity,** If full speed needs too much tilt, lower `PITCH_MAX_DEG` and `ROLL_MAX_DEG` on the handheld. If steering feels sharp, lower `STEER_GAIN` on the car.
+
+**Minimum speed,** If the motors hum without turning at small tilts, raise `MOTOR_MIN_DUTY` on the car. If the car lurches at the start, lower it.
+
+**Battery readings,** Compare the car voltage on the handheld screen against a multimeter reading across the pack, and adjust `BATTERY_DIVIDER` if they differ.
+
+**Braking distance,** Start in crawl speed, because I could not measure real stopping distances. Drive toward a wall and watch where the car stops. If it hits the wall at turbo, raise `BRAKE_STOP_CM` and `BRAKE_SLOW_CM`.
+
+**Follow me,** Not usable yet. The follow controller is written and tested on a PC, but the code that reads the UWB board is not written, because I do not have its serial output format. Until then the handheld shows `FIND TAG` when you hold the mode button.
+
+---
+
+## Troubleshooting
+
+Always start by opening the Serial Monitor at 115200 baud on the board in question. Both firmwares print their state, so most faults show up there first.
+
+### Handheld
+
+| Symptom | Likely cause | What to try |
+|---|---|---|
+| OLED stays blank and serial says `oled FAILED` | Wrong I2C address, loose SDA or SCL, or no 3.3V | Check the wiring. Many 0.96 inch modules use 0x3C, some use 0x3D, so run an I2C scanner and set `OLED_ADDR` to match |
+| Serial says `imu FAILED` | AD0 floating, loose I2C wires, or a sensor that reports a different ID | Tie AD0 to GND, check the wires, and read the `who_am_i` value in the log. The firmware retries every second |
+| Tilting forward gives backward motion | Sensor mounted in a different orientation | Flip `PITCH_SIGN` or `ROLL_SIGN`, or set `SWAP_PITCH_ROLL` |
+| Output drifts while the handheld is still | Gyro calibration ran while the board was moving | Power-cycle it while the handheld is resting, and wait for the `Hold still` message to finish |
+| Handheld shows `NO LINK` | Car off, wrong `CAR_MAC`, or mismatched `TEAM_ID` or `WIFI_CHANNEL` | Re-read the car's MAC from its serial output, copy it into `CAR_MAC`, and compare the other two constants in both files |
+| Screen shows `CAR NOT ARMED` | The car is not acknowledging the arm command | Check the car's serial output for packets arriving, and for a battery cut or a fault flag |
+| Vibration motor is weak or silent | Transistor wired backwards, missing base resistor, or the motor on the wrong rail | Check the BC547 pin order (it differs between brands), the 1k base resistor, and the diode direction |
+| RGB LED shows the wrong colours or stays dark | Common anode part used, or a swapped channel | Check which type you bought. The wiring in this project assumes common cathode |
+| Handheld resets when the motor buzzes or when it transmits | Boost converter cannot supply the peak current, or the battery is low | Add a 100 uF or larger capacitor across the 5V rail, and check the cell voltage under load |
+| Battery percentage is wrong | Divider values differ from the assumed 100k and 100k | Measure the two resistors, and adjust `HAND_BATTERY_DIVIDER` |
+
+### Car
+
+| Symptom | Likely cause | What to try |
+|---|---|---|
+| Nothing moves although the link is up | STBY net not high, no power on VM, or the 6V buck is off | Measure VM and STBY at the driver. STBY has a 10k pull-down and the firmware must drive GPIO23 high |
+| A whole side runs backward | Motor polarity on that driver | Set `LEFT_REVERSED` or `RIGHT_REVERSED` |
+| Steering goes the wrong way | Left and right motors swapped in wiring | Swap the driver connections or flip the two reversal flags |
+| One motor on a side runs backward | That motor's wires are reversed | Swap its two wires. The two motors on a side share one input |
+| Motors hum but do not turn at low tilt | Duty too low to overcome friction | Raise `MOTOR_MIN_DUTY` |
+| ESP32 resets when the motors start | Voltage dip on the 5V rail, or a weak buck or battery | Add bulk capacitance on the 5V rail, check the pack voltage under load, and keep the motor and logic grounds joined at one point |
+| Motors run hot, or the 6V buck gets hot | Four TT motors drawing a lot at stall | Check the buck's current rating, shorten stall events, and avoid pushing the car against a wall |
+| Car creeps at 30 percent in an open room | A sensor stopped reporting (stale) or the ToF reports signal fail oddly | Read the front and rear values in the serial output, and check `tof ok`. Fix the wiring first, then look at the ToF status handling |
+| Car stops far too early | The sensor sees the chassis, the wall edge of the window, or a reflection | Check that the front window cut is wide enough, and that nothing sits in the sensor's view. Lower `BRAKE_STOP_CM` if needed |
+| Rear distance is always 400 or unknown | Echo divider wiring, swapped TRIG and ECHO, or no 5V on the sensor | Check the 1k and 2k divider, the pin order, and the 5V supply to the HC-SR04 |
+| LED strip stays dark | No 5V, missing common ground, wrong data direction, or the level shifter output enable pins floating | Check the DIN arrow on the strip, tie all unused enables and inputs on the 74AHCT125 to ground, and check the 330 ohm resistor |
+| LED strip shows the wrong colours | Strip uses a different colour order | The firmware assumes GRB. Change the order flag in the strip setup |
+| Packets drop when the strip is lit | Strip timing interfering with the radio, or supply noise | Lower `UNDERGLOW_BRIGHTNESS`, add the 1000 uF capacitor at the strip, and re-check the supply |
+| Car cuts power early | Battery divider reads low, or the pack sags under load | Compare the screen voltage to a multimeter, and adjust `BATTERY_DIVIDER`. Review `BATTERY_CUT_MV` against the real pack |
+| Follow-me does nothing | The UWB reader is not written yet | See the note in Step 6. The mode long-press only works while armed |
+
+### Build and print
+
+| Symptom | Likely cause | What to try |
+|---|---|---|
+| Sketch does not compile after a board package update | The ESP-NOW callback and PWM functions changed between package versions 2.x and 3.x | Check which version you have against the switches in the firmware. If it still fails, send the exact error |
+| A library call is not found | Library version differs from what I wrote against | Install the Pololu VL53L1X and Adafruit NeoPixel libraries again, and check the API names in the library examples |
+| USB cable will not fit the slot | Slot sized for the port, not the plug | Raise `usb_plug_w` and `usb_plug_h` in the CAD parameters and reprint |
+| Button cap sticks | Print tolerance too tight | Raise `cap_hole` by 0.1 mm and reprint only the caps |
+| Heat-set insert spins or pulls out | Hole too large, or the insert is pressed too hot | Reduce the hole size slightly and test in a scrap print |
+| Screw posts crack | Posts too thin for the insert | Check the insert datasheet, and increase the post diameter |
+| Case halves do not close | Wires or components trapped at the seam | Check the lip and posts with the parts in place, and re-route the wires |
+| Plate corners lift | Warping on a large flat part | Use the right plate for PLA on the P1S, keep the door open, and add a brim |
+| A wheel rubs the plate | Wheel hub depth differs from the model | Raise `wheel_gap` in the CAD and reprint the base |
+| A part does not fit its pocket | The size in the CAD was typical, not measured | Measure the real part with calipers, change the parameter, and reprint only that part |
