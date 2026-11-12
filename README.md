@@ -70,6 +70,7 @@ A 4WD car you drive by tilting a handheld controller. Tilt it forward or back to
 # Circuit Diagram 
 
 ## handheld diagram
+<img width="956" height="569" alt="partC" src="https://github.com/user-attachments/assets/5aa46302-63d6-41aa-a350-b77e2c145bbc" />
 
 ## handheld pin map
 
@@ -131,6 +132,8 @@ A 4WD car you drive by tilting a handheld controller. Tilt it forward or back to
 | MPU6050 | 0x68 |
 | SSD1306 OLED | 0x3C |
 ## car diagram
+<img width="983" height="542" alt="partA" src="https://github.com/user-attachments/assets/3d8ac89a-5bc0-466b-9dbf-32d9254444db" />
+<img width="1154" height="584" alt="partB" src="https://github.com/user-attachments/assets/5e11fc57-1f6a-45d2-a862-f6703e01ebdc" />
 
 ## car pin map
 
@@ -353,3 +356,21 @@ Always start by opening the Serial Monitor at 115200 baud on the board in questi
 | Plate corners lift | Warping on a large flat part | Use the right plate for PLA on the P1S, keep the door open, and add a brim |
 | A wheel rubs the plate | Wheel hub depth differs from the model | Raise `wheel_gap` in the CAD and reprint the base |
 | A part does not fit its pocket | The size in the CAD was typical, not measured | Measure the real part with calipers, change the parameter, and reprint only that part |
+
+# CAD 
+## Handheld 
+<img width="3024" height="1964" alt="image" src="https://github.com/user-attachments/assets/61011d6b-120f-4201-a60b-fcc0ca3131f3" />
+<img width="1600" height="1039" alt="image" src="https://github.com/user-attachments/assets/a8b7c8b6-65a3-450c-b802-d949f8cc16c5" />
+<img width="1600" height="1039" alt="image" src="https://github.com/user-attachments/assets/6ef7b0da-0cdc-44d3-97bc-dd06290ed1a9" />
+<img width="1600" height="1039" alt="image" src="https://github.com/user-attachments/assets/78a4174c-534c-4e33-a774-a5921596c7fa" />
+<img width="1600" height="1039" alt="image" src="https://github.com/user-attachments/assets/75506585-62e2-47c4-999b-11cb5b78936b" />
+## Car
+<img width="1600" height="1039" alt="image" src="https://github.com/user-attachments/assets/d9331e9a-0bb4-417b-b682-d782e91fba9e" />
+<img width="1600" height="1039" alt="image" src="https://github.com/user-attachments/assets/8cc695b1-11df-4d6f-86ee-fb084bb256d1" />
+<img width="1600" height="1039" alt="image" src="https://github.com/user-attachments/assets/cde67653-4b30-4f5d-b916-7ca6970d4712" />
+<img width="1600" height="1039" alt="image" src="https://github.com/user-attachments/assets/09e8b6f1-1043-4896-ac38-3ba3f42e7461" />
+<img width="1600" height="1039" alt="image" src="https://github.com/user-attachments/assets/d7cc36dc-1e65-42ff-8354-9d1a397f06fe" />
+
+
+
+
